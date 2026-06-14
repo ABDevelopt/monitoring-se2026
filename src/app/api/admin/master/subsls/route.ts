@@ -18,6 +18,26 @@ export async function GET(request: NextRequest) {
     const { searchParams } = request.nextUrl;
     const idSlsStr = searchParams.get('idSls');
     const search = searchParams.get('search');
+    const getUsers = searchParams.get('getUsers');
+
+    if (getUsers === 'true') {
+      const activeUsers = await prisma.user.findMany({
+        where: { isActive: true },
+        select: {
+          id: true,
+          nama: true,
+          username: true,
+          role: true,
+        },
+        orderBy: { nama: 'asc' },
+      });
+      
+      const pcls = activeUsers.filter((u) => u.role === 'pcl');
+      const pmls = activeUsers.filter((u) => u.role === 'pml');
+      const korlaps = activeUsers.filter((u) => u.role === 'korlap');
+
+      return NextResponse.json({ pcls, pmls, korlaps });
+    }
 
     const where: any = {};
     if (idSlsStr) {
@@ -49,6 +69,11 @@ export async function GET(request: NextRequest) {
             },
           },
         },
+        tugasPcl: {
+          select: {
+            idUser: true,
+          },
+        },
       },
       orderBy: { idSubsls: 'asc' },
       take: 200, // batasi hasil agar tidak lemot jika database sangat besar
@@ -76,9 +101,12 @@ export async function POST(request: NextRequest) {
       namaPml,
       namaPcl,
       totalMuatanAssignment,
+      idPcl,
+      idPml,
+      idKorlap,
     } = body;
 
-    if (!idSls || !kodeSubsls || !idSubsls || !namaKorlap || !namaPml || !namaPcl || totalMuatanAssignment === undefined) {
+    if (!idSls || !kodeSubsls || !idSubsls || totalMuatanAssignment === undefined) {
       return NextResponse.json({ error: 'Input tidak lengkap' }, { status: 400 });
     }
 
@@ -98,18 +126,49 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Sub-SLS dengan ID tersebut sudah terdaftar' }, { status: 400 });
     }
 
+    let finalNamaPcl = namaPcl || '';
+    let finalNamaPml = namaPml || '';
+    let finalNamaKorlap = namaKorlap || '';
+
+    // If ID values are passed, fetch real names
+    if (idPcl) {
+      const u = await prisma.user.findFirst({ where: { id: parseInt(idPcl), role: 'pcl' } });
+      if (u) finalNamaPcl = u.nama;
+    }
+    if (idPml) {
+      const u = await prisma.user.findFirst({ where: { id: parseInt(idPml), role: 'pml' } });
+      if (u) finalNamaPml = u.nama;
+    }
+    if (idKorlap) {
+      const u = await prisma.user.findFirst({ where: { id: parseInt(idKorlap), role: 'korlap' } });
+      if (u) finalNamaKorlap = u.nama;
+    }
+
     const result = await prisma.subSls.create({
       data: {
         idSls: slsId,
         kodeSubsls,
         idSubsls,
         idSubsls2025: idSubsls2025 || null,
-        namaKorlap,
-        namaPml,
-        namaPcl,
+        namaKorlap: finalNamaKorlap,
+        namaPml: finalNamaPml,
+        namaPcl: finalNamaPcl,
         totalMuatanAssignment: muatan,
       },
     });
+
+    // Create TugasPcl mapping if PCL user is allocated
+    if (idPcl) {
+      const parsedPclId = parseInt(idPcl);
+      if (!isNaN(parsedPclId)) {
+        await prisma.tugasPcl.create({
+          data: {
+            idUser: parsedPclId,
+            idSubsls: result.id,
+          },
+        });
+      }
+    }
 
     return NextResponse.json({ success: true, data: result });
   } catch (error) {
@@ -135,9 +194,80 @@ export async function PUT(request: NextRequest) {
       namaPml,
       namaPcl,
       totalMuatanAssignment,
+      idPcl,
+      idPml,
+      idKorlap,
+      isAllocationOnly,
     } = body;
 
-    if (!id || !idSls || !kodeSubsls || !idSubsls || !namaKorlap || !namaPml || !namaPcl || totalMuatanAssignment === undefined) {
+    if (!id) {
+      return NextResponse.json({ error: 'ID tidak valid' }, { status: 400 });
+    }
+
+    const subSlsId = parseInt(id);
+    if (isNaN(subSlsId)) {
+      return NextResponse.json({ error: 'ID tidak valid' }, { status: 400 });
+    }
+
+    if (isAllocationOnly) {
+      const existingSubSls = await prisma.subSls.findUnique({
+        where: { id: subSlsId },
+      });
+
+      if (!existingSubSls) {
+        return NextResponse.json({ error: 'Sub-SLS tidak ditemukan' }, { status: 404 });
+      }
+
+      let finalNamaPcl = '';
+      let finalNamaPml = '';
+      let finalNamaKorlap = '';
+
+      if (idPcl) {
+        const u = await prisma.user.findFirst({ where: { id: parseInt(idPcl), role: 'pcl' } });
+        if (u) finalNamaPcl = u.nama;
+      }
+      
+      if (idPml) {
+        const u = await prisma.user.findFirst({ where: { id: parseInt(idPml), role: 'pml' } });
+        if (u) finalNamaPml = u.nama;
+      }
+
+      if (idKorlap) {
+        const u = await prisma.user.findFirst({ where: { id: parseInt(idKorlap), role: 'korlap' } });
+        if (u) finalNamaKorlap = u.nama;
+      }
+
+      const result = await prisma.subSls.update({
+        where: { id: subSlsId },
+        data: {
+          namaPcl: finalNamaPcl,
+          namaPml: finalNamaPml,
+          namaKorlap: finalNamaKorlap,
+        },
+      });
+
+      // Synchronize TugasPcl: clear and rebuild mapping
+      await prisma.tugasPcl.deleteMany({
+        where: { idSubsls: subSlsId },
+      });
+
+      if (idPcl) {
+        const parsedPclId = parseInt(idPcl);
+        if (!isNaN(parsedPclId)) {
+          await prisma.tugasPcl.create({
+            data: {
+              idUser: parsedPclId,
+              idSubsls: subSlsId,
+            },
+          });
+        }
+      }
+
+      return NextResponse.json({ success: true, data: result });
+    }
+
+    // Normal full update
+    if (!idSls || !kodeSubsls || !idSubsls || totalMuatanAssignment === undefined) {
       return NextResponse.json({ error: 'Input tidak lengkap' }, { status: 400 });
     }
 
@@ -152,7 +282,7 @@ export async function PUT(request: NextRequest) {
     const duplicate = await prisma.subSls.findFirst({
       where: {
         idSubsls,
-        id: { not: id },
+        id: { not: subSlsId },
       },
     });
 
@@ -160,19 +290,54 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'ID Sub-SLS sudah digunakan oleh wilayah lain' }, { status: 400 });
     }
 
+    let finalNamaPcl = namaPcl || '';
+    let finalNamaPml = namaPml || '';
+    let finalNamaKorlap = namaKorlap || '';
+
+    // If IDs are passed, resolve them
+    if (idPcl) {
+      const u = await prisma.user.findFirst({ where: { id: parseInt(idPcl), role: 'pcl' } });
+      if (u) finalNamaPcl = u.nama;
+    }
+    if (idPml) {
+      const u = await prisma.user.findFirst({ where: { id: parseInt(idPml), role: 'pml' } });
+      if (u) finalNamaPml = u.nama;
+    }
+    if (idKorlap) {
+      const u = await prisma.user.findFirst({ where: { id: parseInt(idKorlap), role: 'korlap' } });
+      if (u) finalNamaKorlap = u.nama;
+    }
+
     const result = await prisma.subSls.update({
-      where: { id: parseInt(id) },
+      where: { id: subSlsId },
       data: {
         idSls: slsId,
         kodeSubsls,
         idSubsls,
         idSubsls2025: idSubsls2025 || null,
-        namaKorlap,
-        namaPml,
-        namaPcl,
+        namaKorlap: finalNamaKorlap,
+        namaPml: finalNamaPml,
+        namaPcl: finalNamaPcl,
         totalMuatanAssignment: muatan,
       },
     });
+
+    // Sync TugasPcl
+    await prisma.tugasPcl.deleteMany({
+      where: { idSubsls: subSlsId },
+    });
+
+    if (idPcl) {
+      const parsedPclId = parseInt(idPcl);
+      if (!isNaN(parsedPclId)) {
+        await prisma.tugasPcl.create({
+          data: {
+            idUser: parsedPclId,
+            idSubsls: subSlsId,
+          },
+        });
+      }
+    }
 
     return NextResponse.json({ success: true, data: result });
   } catch (error) {

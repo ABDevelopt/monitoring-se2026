@@ -18,10 +18,11 @@ import {
   Layers,
   MapPin,
   AlertCircle,
-  CheckCircle2
+  CheckCircle2,
+  UserCheck
 } from 'lucide-react';
 
-type TabType = 'kecamatan' | 'desa' | 'sls' | 'subsls';
+type TabType = 'kecamatan' | 'desa' | 'sls' | 'subsls' | 'alokasi';
 
 export default function AdminMasterPage() {
   const [activeTab, setActiveTab] = useState<TabType>('kecamatan');
@@ -35,6 +36,18 @@ export default function AdminMasterPage() {
   const [desaList, setDesaList] = useState<any[]>([]);
   const [slsList, setSlsList] = useState<any[]>([]);
   const [subSlsList, setSubSlsList] = useState<any[]>([]);
+
+  // Officer dropdown options for allocation
+  const [pclOptions, setPclOptions] = useState<any[]>([]);
+  const [pmlOptions, setPmlOptions] = useState<any[]>([]);
+  const [korlapOptions, setKorlapOptions] = useState<any[]>([]);
+
+  // Allocation Modal State
+  const [isAllocationModalOpen, setIsAllocationModalOpen] = useState<boolean>(false);
+  const [selectedSubSls, setSelectedSubSls] = useState<any>(null);
+  const [allocatedPclId, setAllocatedPclId] = useState<string>('');
+  const [allocatedPmlId, setAllocatedPmlId] = useState<string>('');
+  const [allocatedKorlapId, setAllocatedKorlapId] = useState<string>('');
 
   // Filter Cascade Selection (for SLS & Sub-SLS tables)
   const [filterKec, setFilterKec] = useState<string>('');
@@ -121,6 +134,20 @@ export default function AdminMasterPage() {
     }
   };
 
+  const loadUserOptions = async () => {
+    try {
+      const res = await fetch('/api/admin/master/subsls?getUsers=true');
+      if (res.ok) {
+        const data = await res.json();
+        setPclOptions(data.pcls || []);
+        setPmlOptions(data.pmls || []);
+        setKorlapOptions(data.korlaps || []);
+      }
+    } catch (err) {
+      console.error('Failed to load user options:', err);
+    }
+  };
+
   // Trigger loading based on active tab
   useEffect(() => {
     async function loadData() {
@@ -136,6 +163,8 @@ export default function AdminMasterPage() {
         await Promise.all([loadKecamatan(), loadSlsList(filterDesa)]);
       } else if (activeTab === 'subsls') {
         await Promise.all([loadKecamatan(), loadSubSlsList(filterSls)]);
+      } else if (activeTab === 'alokasi') {
+        await Promise.all([loadKecamatan(), loadSubSlsList(filterSls), loadUserOptions()]);
       }
       setIsLoading(false);
     }
@@ -170,7 +199,7 @@ export default function AdminMasterPage() {
     
     if (activeTab === 'sls') {
       loadSlsList(filterDesa, searchQuery);
-    } else if (activeTab === 'subsls') {
+    } else if (activeTab === 'subsls' || activeTab === 'alokasi') {
       fetch(`/api/sls?desaId=${filterDesa}`)
         .then(res => res.json())
         .then(data => setFilteredSlsOptions(data))
@@ -179,7 +208,7 @@ export default function AdminMasterPage() {
   }, [filterDesa, activeTab]);
 
   useEffect(() => {
-    if (activeTab === 'subsls') {
+    if (activeTab === 'subsls' || activeTab === 'alokasi') {
       loadSubSlsList(filterSls, searchQuery);
     }
   }, [filterSls, activeTab]);
@@ -189,7 +218,7 @@ export default function AdminMasterPage() {
     e.preventDefault();
     if (activeTab === 'sls') {
       loadSlsList(filterDesa, searchQuery);
-    } else if (activeTab === 'subsls') {
+    } else if (activeTab === 'subsls' || activeTab === 'alokasi') {
       loadSubSlsList(filterSls, searchQuery);
     }
   };
@@ -288,6 +317,65 @@ export default function AdminMasterPage() {
   const handleOpenDelete = (item: any) => {
     setSelectedItem(item);
     setIsDeleteModalOpen(true);
+  };
+
+  // Allocation handlers
+  const handleOpenAllocation = (sub: any) => {
+    setSelectedSubSls(sub);
+    setFeedback(null);
+    
+    // Find matching PCL ID from tugasPcl relation
+    const currentPclId = sub.tugasPcl && sub.tugasPcl.length > 0 
+      ? sub.tugasPcl[0].idUser.toString() 
+      : '';
+    setAllocatedPclId(currentPclId);
+
+    // Find matching PML ID by name matching
+    const currentPml = pmlOptions.find(p => p.nama === sub.namaPml);
+    setAllocatedPmlId(currentPml ? currentPml.id.toString() : '');
+
+    // Find matching Korlap ID by name matching
+    const currentKorlap = korlapOptions.find(k => k.nama === sub.namaKorlap);
+    setAllocatedKorlapId(currentKorlap ? currentKorlap.id.toString() : '');
+
+    setIsAllocationModalOpen(true);
+  };
+
+  const handleAllocationSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedSubSls) return;
+
+    setIsSubmitting(true);
+    setFeedback(null);
+
+    try {
+      const res = await fetch('/api/admin/master/subsls', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: selectedSubSls.id,
+          idPcl: allocatedPclId ? parseInt(allocatedPclId) : null,
+          idPml: allocatedPmlId ? parseInt(allocatedPmlId) : null,
+          idKorlap: allocatedKorlapId ? parseInt(allocatedKorlapId) : null,
+          isAllocationOnly: true,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Gagal menyimpan alokasi petugas.');
+
+      setFeedback({ type: 'success', text: 'Alokasi petugas berhasil diperbarui!' });
+      
+      // Reload Sub-SLS list
+      await loadSubSlsList(filterSls, searchQuery);
+
+      // Close modal after short delay
+      setTimeout(() => setIsAllocationModalOpen(false), 1000);
+    } catch (err: any) {
+      setFeedback({ type: 'error', text: err.message || 'Gagal menyimpan alokasi petugas.' });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   // Form Submit handler
@@ -390,6 +478,7 @@ export default function AdminMasterPage() {
           { id: 'desa', label: 'Desa / Kelurahan', icon: Map },
           { id: 'sls', label: 'SLS / RT', icon: Home },
           { id: 'subsls', label: 'Sub-SLS & Muatan', icon: Layers },
+          { id: 'alokasi', label: 'Alokasi Petugas', icon: UserCheck },
         ].map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -422,8 +511,8 @@ export default function AdminMasterPage() {
         >
           {/* Filters area */}
           <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', flex: 1 }}>
-            {/* Filter Kecamatan (for SLS, Sub-SLS) */}
-            {(activeTab === 'sls' || activeTab === 'subsls') && (
+            {/* Filter Kecamatan (for SLS, Sub-SLS, Alokasi) */}
+            {(activeTab === 'sls' || activeTab === 'subsls' || activeTab === 'alokasi') && (
               <select
                 className="form-control"
                 style={{ width: '180px', padding: '8px 12px' }}
@@ -439,8 +528,8 @@ export default function AdminMasterPage() {
               </select>
             )}
 
-            {/* Filter Desa (for SLS, Sub-SLS) */}
-            {(activeTab === 'sls' || activeTab === 'subsls') && (
+            {/* Filter Desa (for SLS, Sub-SLS, Alokasi) */}
+            {(activeTab === 'sls' || activeTab === 'subsls' || activeTab === 'alokasi') && (
               <select
                 className="form-control"
                 style={{ width: '180px', padding: '8px 12px' }}
@@ -457,8 +546,8 @@ export default function AdminMasterPage() {
               </select>
             )}
 
-            {/* Filter SLS (only for Sub-SLS) */}
-            {activeTab === 'subsls' && (
+            {/* Filter SLS (only for Sub-SLS, Alokasi) */}
+            {(activeTab === 'subsls' || activeTab === 'alokasi') && (
               <select
                 className="form-control"
                 style={{ width: '180px', padding: '8px 12px' }}
@@ -475,8 +564,8 @@ export default function AdminMasterPage() {
               </select>
             )}
 
-            {/* Search Input (For SLS and Sub-SLS) */}
-            {(activeTab === 'sls' || activeTab === 'subsls') && (
+            {/* Search Input (For SLS, Sub-SLS, Alokasi) */}
+            {(activeTab === 'sls' || activeTab === 'subsls' || activeTab === 'alokasi') && (
               <form onSubmit={handleSearch} style={{ display: 'flex', gap: '8px', flex: 1, maxWidth: '300px' }}>
                 <input
                   type="text"
@@ -493,10 +582,12 @@ export default function AdminMasterPage() {
             )}
           </div>
 
-          <Button onClick={handleOpenAdd} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Plus size={16} />
-            Tambah Data
-          </Button>
+          {activeTab !== 'alokasi' && (
+            <Button onClick={handleOpenAdd} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Plus size={16} />
+              Tambah Data
+            </Button>
+          )}
         </div>
 
         {/* Loader */}
@@ -680,6 +771,71 @@ export default function AdminMasterPage() {
                               <Trash2 size={14} style={{ color: 'var(--color-danger)' }} />
                             </Button>
                           </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            )}
+
+            {/* ALOKASI TABLE */}
+            {activeTab === 'alokasi' && (
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                <thead>
+                  <tr style={{ borderBottom: '2px solid var(--border-light)', color: 'var(--text-muted)' }}>
+                    <th style={{ padding: '12px 8px' }}>ID Sub-SLS BPS</th>
+                    <th style={{ padding: '12px 8px' }}>RT/SLS (Desa)</th>
+                    <th style={{ padding: '12px 8px' }}>PCL Pencacah</th>
+                    <th style={{ padding: '12px 8px' }}>PML Pengawas</th>
+                    <th style={{ padding: '12px 8px' }}>Korlap</th>
+                    <th style={{ padding: '12px 8px', textAlign: 'center', width: '150px' }}>Aksi</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {subSlsList.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)' }}>
+                        Tidak ada data Sub-SLS yang ditemukan.
+                      </td>
+                    </tr>
+                  ) : (
+                    subSlsList.map((sub) => (
+                      <tr key={sub.id} style={{ borderBottom: '1px solid var(--border-light)' }}>
+                        <td style={{ padding: '12px 8px', fontWeight: 700 }}>{sub.idSubsls}</td>
+                        <td style={{ padding: '12px 8px', color: 'var(--text-muted)' }}>
+                          {sub.sls?.namaSls} ({sub.sls?.desa?.namaDesa})
+                        </td>
+                        <td style={{ padding: '12px 8px' }}>
+                          {sub.namaPcl ? (
+                            <Badge variant="success">{sub.namaPcl}</Badge>
+                          ) : (
+                            <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>Belum Dialokasikan</span>
+                          )}
+                        </td>
+                        <td style={{ padding: '12px 8px' }}>
+                          {sub.namaPml ? (
+                            <Badge variant="info">{sub.namaPml}</Badge>
+                          ) : (
+                            <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>Belum Dialokasikan</span>
+                          )}
+                        </td>
+                        <td style={{ padding: '12px 8px' }}>
+                          {sub.namaKorlap ? (
+                            <Badge variant="gray">{sub.namaKorlap}</Badge>
+                          ) : (
+                            <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>Belum Dialokasikan</span>
+                          )}
+                        </td>
+                        <td style={{ padding: '12px 8px', textAlign: 'center' }}>
+                          <Button
+                            size="sm"
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                            onClick={() => handleOpenAllocation(sub)}
+                          >
+                            <UserCheck size={14} />
+                            Alokasikan
+                          </Button>
                         </td>
                       </tr>
                     ))
@@ -1053,6 +1209,107 @@ export default function AdminMasterPage() {
               </Button>
             </div>
           </div>
+        </Modal>
+      )}
+
+      {/* ALLOCATION MODAL */}
+      {isAllocationModalOpen && (
+        <Modal
+          isOpen={isAllocationModalOpen}
+          onClose={() => setIsAllocationModalOpen(false)}
+          title="Alokasi Petugas Wilayah Tugas"
+        >
+          <form onSubmit={handleAllocationSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            {feedback && (
+              <div
+                style={{
+                  padding: '12px 16px',
+                  borderRadius: '6px',
+                  backgroundColor: feedback.type === 'success' ? 'var(--color-success-bg)' : 'var(--color-danger-bg)',
+                  color: feedback.type === 'success' ? 'var(--color-success-text)' : 'var(--color-danger-text)',
+                  fontSize: '14px',
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                }}
+              >
+                {feedback.type === 'success' ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}
+                {feedback.text}
+              </div>
+            )}
+
+            <div>
+              <h4 style={{ margin: '0 0 6px 0', fontSize: '15px', fontWeight: 700 }}>
+                Sub-SLS: {selectedSubSls?.idSubsls}
+              </h4>
+              <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-muted)' }}>
+                Wilayah: {selectedSubSls?.sls?.namaSls} ({selectedSubSls?.sls?.desa?.namaDesa})
+              </p>
+            </div>
+
+            <hr style={{ border: 'none', borderTop: '1px solid var(--border-light)', margin: '0' }} />
+
+            <div className="form-group">
+              <label className="form-label" htmlFor="allocPcl">PCL Pencacah (PPL)</label>
+              <select
+                id="allocPcl"
+                className="form-control"
+                value={allocatedPclId}
+                onChange={(e) => setAllocatedPclId(e.target.value)}
+              >
+                <option value="">-- Pilih PCL Pencacah --</option>
+                {pclOptions.map((u) => (
+                  <option key={u.id} value={u.id}>
+                    {u.nama} ({u.username})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label" htmlFor="allocPml">PML Pengawas</label>
+              <select
+                id="allocPml"
+                className="form-control"
+                value={allocatedPmlId}
+                onChange={(e) => setAllocatedPmlId(e.target.value)}
+              >
+                <option value="">-- Pilih PML Pengawas --</option>
+                {pmlOptions.map((u) => (
+                  <option key={u.id} value={u.id}>
+                    {u.nama} ({u.username})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label" htmlFor="allocKorlap">Koordinator Lapangan</label>
+              <select
+                id="allocKorlap"
+                className="form-control"
+                value={allocatedKorlapId}
+                onChange={(e) => setAllocatedKorlapId(e.target.value)}
+              >
+                <option value="">-- Pilih Korlap --</option>
+                {korlapOptions.map((u) => (
+                  <option key={u.id} value={u.id}>
+                    {u.nama} ({u.username})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '10px' }}>
+              <Button type="button" variant="secondary" onClick={() => setIsAllocationModalOpen(false)}>
+                Batal
+              </Button>
+              <Button type="submit" isLoading={isSubmitting}>
+                Simpan Alokasi
+              </Button>
+            </div>
+          </form>
         </Modal>
       )}
     </div>
