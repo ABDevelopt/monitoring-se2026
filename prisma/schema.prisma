@@ -1,0 +1,122 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  // Untuk Local Development: gunakan SQLite
+  provider = "sqlite"
+  url      = "file:./dev.db"
+
+  // Untuk Production (Dewaweb): ganti dengan MySQL
+  // provider = "mysql"
+  // url      = env("DATABASE_URL")
+}
+
+model Kecamatan {
+  id       Int      @id @default(autoincrement())
+  kodeKec  String   @unique @map("kode_kec")
+  namaKec  String   @map("nama_kec")
+  desa     Desa[]
+  users    User[]
+  targets  Target[]
+
+  @@map("tb_kecamatan")
+}
+
+model Desa {
+  id          Int       @id @default(autoincrement())
+  idKecamatan Int       @map("id_kecamatan")
+  idDesa      String    @unique @map("id_desa")
+  kodeDesa    String    @map("kode_desa")
+  namaDesa    String    @map("nama_desa")
+  kecamatan   Kecamatan @relation(fields: [idKecamatan], references: [id], onDelete: Cascade)
+  sls         Sls[]
+
+  @@map("tb_desa")
+}
+
+model Sls {
+  id      Int      @id @default(autoincrement())
+  idDesa  Int      @map("id_desa")
+  kodeSls String   @map("kode_sls")
+  namaSls String   @map("nama_sls")
+  desa    Desa     @relation(fields: [idDesa], references: [id], onDelete: Cascade)
+  subsls  SubSls[]
+
+  @@map("tb_sls")
+}
+
+model SubSls {
+  id                    Int        @id @default(autoincrement())
+  idSls                 Int        @map("id_sls")
+  kodeSubsls            String     @map("kode_subsls")
+  idSubsls              String     @unique @map("id_subsls")
+  idSubsls2025          String?    @map("id_subsls_2025")
+  namaKorlap            String     @map("nama_korlap")
+  namaPml               String     @map("nama_pml")
+  namaPcl               String     @map("nama_pcl")
+  totalMuatanAssignment Int        @default(0) @map("total_muatan_assignment")
+  sls                   Sls        @relation(fields: [idSls], references: [id], onDelete: Cascade)
+  laporan               Laporan[]
+  tugasPcl              TugasPcl[]
+
+  @@map("tb_subsls")
+}
+
+model User {
+  id           Int        @id @default(autoincrement())
+  nama         String
+  username     String     @unique
+  passwordHash String     @map("password_hash")
+  role         String     @default("pcl") // "admin", "korlap", "pml", "pcl"
+  idKecamatan  Int?       @map("id_kecamatan")
+  isActive     Boolean    @default(true) @map("is_active")
+  createdAt    DateTime   @default(now()) @map("created_at")
+  kecamatan    Kecamatan? @relation(fields: [idKecamatan], references: [id], onDelete: SetNull)
+  laporan      Laporan[]
+  tugasPcl     TugasPcl[]
+
+  @@map("tb_user")
+}
+
+model TugasPcl {
+  id       Int    @id @default(autoincrement())
+  idUser   Int    @map("id_user")
+  idSubsls Int    @map("id_subsls")
+  user     User   @relation(fields: [idUser], references: [id], onDelete: Cascade)
+  subsls   SubSls @relation(fields: [idSubsls], references: [id], onDelete: Cascade)
+
+  @@unique([idUser, idSubsls])
+  @@map("tb_tugas_pcl")
+}
+
+model Laporan {
+  id               Int      @id @default(autoincrement())
+  tanggal          DateTime
+  idSubsls         Int      @map("id_subsls")
+  jumlahAssignment Int      @default(0) @map("jumlah_assignment")
+  jumlahSelesai    Int      @default(0) @map("jumlah_selesai")
+  status           String   @default("progres") // "selesai", "progres", "tidak_selesai"
+  keterangan       String?
+  idUser           Int      @map("id_user")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+  subsls           SubSls   @relation(fields: [idSubsls], references: [id], onDelete: Cascade)
+  user             User     @relation(fields: [idUser], references: [id], onDelete: Cascade)
+
+  @@unique([tanggal, idSubsls])
+  @@map("tb_laporan")
+}
+
+model Target {
+  id                  Int       @id @default(autoincrement())
+  idKecamatan         Int       @map("id_kecamatan")
+  targetSelesaiPersen Float     @default(100.0) @map("target_selesai_persen")
+  tanggalMulai        DateTime  @map("tanggal_mulai")
+  tanggalSelesai      DateTime  @map("tanggal_selesai")
+  kecamatan           Kecamatan @relation(fields: [idKecamatan], references: [id], onDelete: Cascade)
+
+  @@map("tb_target")
+}
