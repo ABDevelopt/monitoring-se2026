@@ -203,7 +203,11 @@ export async function GET(
       summary: {
         totalUsaha: totalUsahaKec,
         usahaSelesai: usahaSelesaiKec,
-        progressPersen: totalUsahaKec > 0 ? (usahaSelesaiKec / totalUsahaKec) * 100 : 100,
+        progressPersen: totalUsahaKec > 0 
+          ? (usahaSelesaiKec / totalUsahaKec) * 100 
+          : (subSlsList.length > 0 
+              ? ((countSelesaiKecSub * 100 + countProgresKecSub * 50) / subSlsList.length) 
+              : 0),
         subSlsStats: {
           total: subSlsList.length,
           selesai: countSelesaiKecSub,

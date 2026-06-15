@@ -69,7 +69,11 @@ export function SlsTable({ slsList, onSelectSls }: SlsTableProps) {
         </thead>
         <tbody>
           {slsList.map((sls) => {
-            const usahaPersen = sls.totalMuatan > 0 ? (sls.selesai / sls.totalMuatan) * 100 : 100;
+            const usahaPersen = sls.totalMuatan > 0 
+              ? (sls.selesai / sls.totalMuatan) * 100 
+              : (sls.jumlahSubSls > 0 
+                  ? ((sls.countSelesai * 100 + sls.countProgres * 50) / sls.jumlahSubSls) 
+                  : 0);
 
             return (
               <tr

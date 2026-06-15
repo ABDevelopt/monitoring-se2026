@@ -270,7 +270,11 @@ export async function GET() {
       summary: {
         totalUsaha: totalUsahaKab,
         usahaSelesai: usahaSelesaiKab,
-        progressPersen: totalUsahaKab > 0 ? (usahaSelesaiKab / totalUsahaKab) * 100 : 100,
+        progressPersen: totalUsahaKab > 0 
+          ? (usahaSelesaiKab / totalUsahaKab) * 100 
+          : (subSlsList.length > 0 
+              ? ((countSelesaiSub * 100 + countProgresSub * 50) / subSlsList.length) 
+              : 0),
         subSlsStats: {
           total: subSlsList.length,
           selesai: countSelesaiSub,
@@ -299,7 +303,9 @@ export async function GET() {
         }
 
         const persentase = latestReport
-          ? (totalMuatan > 0 ? (selesai / totalMuatan) * 100 : 100)
+          ? (totalMuatan > 0 
+              ? (selesai / totalMuatan) * 100 
+              : (latestReport.status === 'selesai' ? 100 : (latestReport.status === 'tidak_selesai' ? 0 : 50)))
           : 0;
 
         return {

@@ -66,7 +66,11 @@ export function KecamatanTable({ kecamatanList, onSelectKecamatan }: KecamatanTa
         </thead>
         <tbody>
           {kecamatanList.map((kec) => {
-            const usahaPersen = kec.totalMuatan > 0 ? (kec.selesai / kec.totalMuatan) * 100 : 100;
+            const usahaPersen = kec.totalMuatan > 0 
+              ? (kec.selesai / kec.totalMuatan) * 100 
+              : (kec.totalSubSls > 0 
+                  ? ((kec.countSelesai * 100 + kec.countProgres * 50) / kec.totalSubSls) 
+                  : 0);
             
             return (
               <tr

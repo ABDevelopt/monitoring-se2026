@@ -74,7 +74,9 @@ export async function GET(
 
       // Hitung persentase
       const persentase = latestReport
-        ? (totalMuatan > 0 ? (selesai / totalMuatan) * 100 : 100)
+        ? (totalMuatan > 0 
+            ? (selesai / totalMuatan) * 100 
+            : (latestReport.status === 'selesai' ? 100 : (latestReport.status === 'tidak_selesai' ? 0 : 50)))
         : 0;
 
       // Tentukan status
@@ -131,7 +133,12 @@ export async function GET(
       summary: {
         totalUsaha: totalUsahaSls,
         usahaSelesai: usahaSelesaiSls,
-        progressPersen: totalUsahaSls > 0 ? (usahaSelesaiSls / totalUsahaSls) * 100 : 0,
+        progressPersen: totalUsahaSls > 0 
+          ? (usahaSelesaiSls / totalUsahaSls) * 100 
+          : (subSlsDetails.length > 0 
+              ? ((subSlsDetails.filter(s => s.status === 'selesai').length * 100 + 
+                  subSlsDetails.filter(s => s.status === 'progres').length * 50) / subSlsDetails.length)
+              : 0),
         activeAlertsCount: countAlertSls,
       },
       subSlsList: subSlsDetails,
