@@ -9,7 +9,8 @@ router.get('/', async (req, res) => {
 
   try {
     const subsls = await prisma.subSls.findMany({ where: { idSls: slsId }, orderBy: { kodeSubsls: 'asc' } });
-    return res.json(subsls);
+    const mapped = subsls.map(s => ({ ...s, namaSubSls: s.idSubsls }));
+    return res.json(mapped);
   } catch (error) {
     return res.status(500).json({ error: 'Gagal memuat data sub-SLS' });
   }

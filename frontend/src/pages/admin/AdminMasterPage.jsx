@@ -101,7 +101,7 @@ function SlsNode({ sls }) {
                 borderLeft: '1px solid rgba(99, 102, 241, 0.2)'
               }}
             >
-              <span>{sub.namaSubSls} ({sub.kodeSubsls})</span>
+              <span>{sub.namaSubSls || sub.idSubsls} ({sub.kodeSubsls})</span>
               <div style={{ display: 'flex', gap: '8px', fontSize: '11px' }}>
                 <span style={{ color: '#e2e8f0' }}>Target: <b>{sub.totalMuatanAssignment}</b></span>
                 {sub.namaPcl && <span style={{ color: '#34d399' }}>PCL: {sub.namaPcl}</span>}
@@ -153,7 +153,7 @@ function KecamatanAccordion({ kec }) {
       >
         {isOpen ? <ChevronDown size={20} style={{ color: '#818cf8' }} /> : <ChevronRight size={20} style={{ color: '#94a3b8' }} />}
         <div style={{ flex: 1 }}>
-          <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#f1f5f9', margin: 0 }}>{kec.nama} ({kec.kodeKec})</h3>
+          <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#f1f5f9', margin: 0 }}>{kec.nama || kec.namaKec} ({kec.kodeKec})</h3>
           <div style={{ display: 'flex', gap: '12px', fontSize: '12px', color: '#64748b', marginTop: '4px' }}>
             <span>{desaCount} Desa</span>
             <span>•</span>
@@ -211,19 +211,25 @@ export default function AdminMasterPage() {
     const query = searchQuery.toLowerCase();
     
     // Match kecamatan nama
-    if (kec.nama.toLowerCase().includes(query)) return true;
+    const namaKec = kec.nama || kec.namaKec || '';
+    if (namaKec.toLowerCase().includes(query)) return true;
     
     // Check desa, sls, and subsls inside kecamatan
     let matchesDesa = false;
     if (kec.desa) {
       kec.desa.forEach(d => {
-        if (d.namaDesa.toLowerCase().includes(query)) matchesDesa = true;
+        const namaDesa = d.nama || d.namaDesa || '';
+        if (namaDesa.toLowerCase().includes(query)) matchesDesa = true;
         if (d.sls) {
           d.sls.forEach(s => {
-            if (s.namaSls.toLowerCase().includes(query) || s.kodeSls.toLowerCase().includes(query)) matchesDesa = true;
+            const namaSls = s.namaSls || '';
+            const kodeSls = s.kodeSls || '';
+            if (namaSls.toLowerCase().includes(query) || kodeSls.toLowerCase().includes(query)) matchesDesa = true;
             if (s.subsls) {
               s.subsls.forEach(sub => {
-                if (sub.namaSubSls.toLowerCase().includes(query) || sub.kodeSubsls.toLowerCase().includes(query)) matchesDesa = true;
+                const namaSubSls = sub.namaSubSls || sub.idSubsls || '';
+                const kodeSubsls = sub.kodeSubsls || '';
+                if (namaSubSls.toLowerCase().includes(query) || kodeSubsls.toLowerCase().includes(query)) matchesDesa = true;
               });
             }
           });

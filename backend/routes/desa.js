@@ -9,7 +9,8 @@ router.get('/', async (req, res) => {
 
   try {
     const desa = await prisma.desa.findMany({ where: { idKecamatan: kecamatanId }, orderBy: { kodeDesa: 'asc' } });
-    return res.json(desa);
+    const mapped = desa.map(d => ({ ...d, nama: d.namaDesa }));
+    return res.json(mapped);
   } catch (error) {
     return res.status(500).json({ error: 'Gagal memuat data desa' });
   }

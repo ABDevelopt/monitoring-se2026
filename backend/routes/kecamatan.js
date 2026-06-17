@@ -6,7 +6,8 @@ const { prisma } = require('../lib/prisma');
 router.get('/', async (req, res) => {
   try {
     const kecamatan = await prisma.kecamatan.findMany({ orderBy: { kodeKec: 'asc' } });
-    return res.json(kecamatan);
+    const mapped = kecamatan.map(k => ({ ...k, nama: k.namaKec }));
+    return res.json(mapped);
   } catch (error) {
     return res.status(500).json({ error: 'Gagal memuat data kecamatan' });
   }

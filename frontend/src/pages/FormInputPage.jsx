@@ -241,7 +241,7 @@ export default function FormInputPage() {
                 >
                   <option value="">-- Pilih Kecamatan --</option>
                   {kecamatanList.map(kec => (
-                    <option key={kec.id} value={kec.id}>{kec.nama}</option>
+                    <option key={kec.id} value={kec.id}>{kec.nama || kec.namaKec}</option>
                   ))}
                 </select>
               </div>
@@ -256,7 +256,7 @@ export default function FormInputPage() {
                 >
                   <option value="">-- Pilih Desa --</option>
                   {desaList.map(desa => (
-                    <option key={desa.id} value={desa.id}>{desa.nama}</option>
+                    <option key={desa.id} value={desa.id}>{desa.nama || desa.namaDesa}</option>
                   ))}
                 </select>
               </div>
@@ -286,7 +286,7 @@ export default function FormInputPage() {
                 >
                   <option value="">-- Pilih Sub-SLS --</option>
                   {subSlsList.map(sub => (
-                    <option key={sub.id} value={sub.id}>{sub.namaSubSls} ({sub.kodeSubsls})</option>
+                    <option key={sub.id} value={sub.id}>{sub.namaSubSls || sub.idSubsls} ({sub.kodeSubsls})</option>
                   ))}
                 </select>
               </div>
@@ -418,12 +418,12 @@ export default function FormInputPage() {
                     return (
                       <tr key={item.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                         <td style={{ padding: '12px 8px' }}>
-                          <div style={{ fontWeight: 600, color: '#f1f5f9', fontSize: '14px' }}>{kecObj.nama || '-'}</div>
-                          <div style={{ fontSize: '12px', color: '#94a3b8' }}>{desaObj.nama || '-'}</div>
+                          <div style={{ fontWeight: 600, color: '#f1f5f9', fontSize: '14px' }}>{kecObj.nama || kecObj.namaKec || '-'}</div>
+                          <div style={{ fontSize: '12px', color: '#94a3b8' }}>{desaObj.nama || desaObj.namaDesa || '-'}</div>
                         </td>
                         <td style={{ padding: '12px 8px' }}>
                           <div style={{ fontWeight: 600, color: '#f1f5f9', fontSize: '14px' }}>{slsObj.namaSls || '-'}</div>
-                          <div style={{ fontSize: '12px', color: '#94a3b8' }}>Sub: {subSlsObj.namaSubSls || '-'} ({subSlsObj.kodeSubsls || '-'})</div>
+                          <div style={{ fontSize: '12px', color: '#94a3b8' }}>Sub: {subSlsObj.namaSubSls || subSlsObj.idSubsls || '-'} ({subSlsObj.kodeSubsls || '-'})</div>
                         </td>
                         <td style={{ padding: '12px 8px', textAlign: 'center', fontWeight: 600 }}>{target}</td>
                         <td style={{ padding: '12px 8px', textAlign: 'center', color: '#34d399', fontWeight: 600 }}>{selesai}</td>

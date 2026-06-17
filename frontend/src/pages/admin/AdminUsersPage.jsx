@@ -322,13 +322,13 @@ export default function AdminUsersPage() {
                     <td style={{ padding: '14px 8px', textAlign: 'center' }}>{getRoleBadge(u.role)}</td>
                     <td style={{ padding: '14px 8px', fontSize: '13px' }}>
                       {u.role === 'pml' && u.kecamatan ? (
-                        <span style={{ color: '#38bdf8' }}>Pengawas Kecamatan: <b>{u.kecamatan.nama}</b></span>
+                        <span style={{ color: '#38bdf8' }}>Pengawas Kecamatan: <b>{u.kecamatan.nama || u.kecamatan.namaKec}</b></span>
                       ) : u.role === 'pcl' && u.tugasPcl && u.tugasPcl.length > 0 ? (
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
                           <span style={{ color: '#a7f3d0' }}>Assigned ({u.tugasPcl.length} Sub-SLS):</span>
                           {u.tugasPcl.map(t => (
                             <span key={t.id} style={{ backgroundColor: 'rgba(255,255,255,0.05)', padding: '1px 5px', borderRadius: '4px', fontSize: '11px', color: '#cbd5e1' }}>
-                              {t.subsls?.namaSubSls || `ID:${t.idSubsls}`}
+                              {t.subsls?.namaSubSls || t.subsls?.idSubsls || `ID:${t.idSubsls}`}
                             </span>
                           ))}
                         </div>
@@ -477,7 +477,7 @@ export default function AdminUsersPage() {
                   >
                     <option value="">-- Pilih Kecamatan --</option>
                     {kecamatanList.map(k => (
-                      <option key={k.id} value={k.id}>{k.nama}</option>
+                      <option key={k.id} value={k.id}>{k.nama || k.namaKec}</option>
                     ))}
                   </select>
                   <p style={{ fontSize: '11px', color: '#64748b', margin: '4px 0 0 0' }}>PML hanya dapat melihat/mengontrol progres SLS di dalam kecamatan ini.</p>
@@ -495,7 +495,7 @@ export default function AdminUsersPage() {
                     ) : (
                       assignedSubSls.map(s => (
                         <span key={s.id} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', backgroundColor: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.3)', padding: '3px 8px', borderRadius: '6px', fontSize: '12px', color: '#a7f3d0' }}>
-                          {s.namaSubSls}
+                          {s.namaSubSls || s.idSubsls}
                           <button type="button" onClick={() => handleRemoveSubSlsAssignment(s.id)} style={{ background: 'none', border: 'none', color: '#ef4444', padding: 0, display: 'flex', cursor: 'pointer' }}>
                             <X size={14} />
                           </button>
@@ -511,13 +511,13 @@ export default function AdminUsersPage() {
                     <div>
                       <select className="form-control" style={{ fontSize: '12px', padding: '6px' }} value={selKec} onChange={e => setSelKec(e.target.value)}>
                         <option value="">-- Pilih Kec --</option>
-                        {kecamatanList.map(k => <option key={k.id} value={k.id}>{k.nama}</option>)}
+                        {kecamatanList.map(k => <option key={k.id} value={k.id}>{k.nama || k.namaKec}</option>)}
                       </select>
                     </div>
                     <div>
                       <select className="form-control" style={{ fontSize: '12px', padding: '6px' }} value={selDesa} onChange={e => setSelDesa(e.target.value)} disabled={!selKec}>
                         <option value="">-- Pilih Desa --</option>
-                        {desaList.map(d => <option key={d.id} value={d.id}>{d.nama}</option>)}
+                        {desaList.map(d => <option key={d.id} value={d.id}>{d.nama || d.namaDesa}</option>)}
                       </select>
                     </div>
                   </div>
@@ -532,7 +532,7 @@ export default function AdminUsersPage() {
                     <div style={{ display: 'flex', gap: '4px' }}>
                       <select className="form-control" style={{ fontSize: '12px', padding: '6px', flex: 1 }} value={selSubSls} onChange={e => setSelSubSls(e.target.value)} disabled={!selSls}>
                         <option value="">-- Pilih Sub-SLS --</option>
-                        {subSlsList.map(s => <option key={s.id} value={s.id}>{s.namaSubSls}</option>)}
+                        {subSlsList.map(s => <option key={s.id} value={s.id}>{s.namaSubSls || s.idSubsls} ({s.kodeSubsls})</option>)}
                       </select>
                       <button 
                         type="button" 

@@ -17,7 +17,22 @@ router.get('/users', requireAdmin, async (req, res) => {
       include: { kecamatan: true, tugasPcl: { include: { subsls: true } } },
       orderBy: { id: 'asc' },
     });
-    const sanitized = users.map(({ passwordHash, ...rest }) => rest);
+    const sanitized = users.map(({ passwordHash, ...rest }) => {
+      const u = { ...rest };
+      if (u.kecamatan) {
+        u.kecamatan = { ...u.kecamatan, nama: u.kecamatan.namaKec };
+      }
+      if (u.tugasPcl) {
+        u.tugasPcl = u.tugasPcl.map(t => {
+          const nt = { ...t };
+          if (nt.subsls) {
+            nt.subsls = { ...nt.subsls, namaSubSls: nt.subsls.idSubsls };
+          }
+          return nt;
+        });
+      }
+      return u;
+    });
     return res.json(sanitized);
   } catch (error) {
     return res.status(500).json({ error: 'Gagal memuat data user' });
@@ -151,7 +166,25 @@ router.get('/master/kecamatan', requireAdmin, async (req, res) => {
       include: { desa: { include: { sls: { include: { subsls: true } } } } },
       orderBy: { kodeKec: 'asc' },
     });
-    return res.json(data);
+    
+    // Map properties for frontend compatibility
+    const mapped = data.map(kec => ({
+      ...kec,
+      nama: kec.namaKec,
+      desa: kec.desa.map(d => ({
+        ...d,
+        nama: d.namaDesa,
+        sls: d.sls.map(s => ({
+          ...s,
+          subsls: s.subsls.map(sub => ({
+            ...sub,
+            namaSubSls: sub.idSubsls
+          }))
+        }))
+      }))
+    }));
+
+    return res.json(mapped);
   } catch (error) {
     return res.status(500).json({ error: 'Gagal memuat data master' });
   }
