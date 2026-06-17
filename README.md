@@ -4,18 +4,16 @@ Aplikasi web monitoring harian pendataan **Sensus Ekonomi 2026** di Kabupaten Pe
 
 ---
 
-## 🏗️ Tech Stack
+## 🏗️ Tech Stack & Arsitektur (Opsi B)
+
+Aplikasi telah direbuild menggunakan arsitektur **Express.js (Backend API)** + **React SPA (Frontend)** untuk kemudahan dan keandalan tinggi saat dideploy ke Shared Hosting cPanel (Dewaweb).
 
 | Layer | Teknologi |
 |-------|-----------|
-| Framework | Next.js 14 (App Router) |
-| Runtime | Node.js 20 LTS |
-| Database | MySQL 8.x |
-| ORM | Prisma |
-| Auth | NextAuth.js v5 |
-| Excel | ExcelJS |
-| Charts | Chart.js |
-| Deploy | Dewaweb Shared Hosting (cPanel + Phusion Passenger) |
+| **Frontend** | React SPA (Vite, React Router, Tailwind/CSS variables) |
+| **Backend** | Express.js (Node.js API Server) |
+| **ORM & DB** | Prisma (SQLite untuk lokal, MySQL untuk produksi) |
+| **Excel & Charts** | ExcelJS & Lucide Icons |
 
 ---
 
@@ -38,67 +36,70 @@ Aplikasi web monitoring harian pendataan **Sensus Ekonomi 2026** di Kabupaten Pe
 
 ---
 
-## 🚀 Setup Development
-
-```bash
-# 1. Install dependencies
-npm install
-
-# 2. Copy environment variables
-cp .env.example .env.local
-# Edit .env.local dengan kredensial database Anda
-
-# 3. Generate Prisma client
-npx prisma generate
-
-# 4. Buat database dan jalankan migrations
-npx prisma migrate dev --name init
-
-# 5. Seed data dari JSON master
-npx prisma db seed
-
-# 6. Jalankan development server
-npm run dev
-```
-
-Buka [http://localhost:3000](http://localhost:3000)
-
----
-
 ## 🗂️ Struktur Proyek
 
 ```
 monitoring-se2026/
-├── prisma/             # Schema DB & seed script
-├── src/
-│   ├── app/            # Next.js App Router (pages + API routes)
-│   ├── components/     # React components
-│   ├── lib/            # Prisma client, auth, EWS, Excel helper
-│   └── styles/         # CSS modules
-└── scripts/            # Import JSON data
+├── frontend/          # Aplikasi React Client (Vite)
+│   ├── src/
+│   │   ├── pages/     # Login, Dashboard, FormInput, Rekap, Admin pages
+│   │   ├── components/# Sidebar, Layout, ProtectedRoute
+│   │   └── context/   # Auth Context & Session Management
+│   └── package.json
+│
+└── backend/           # API Express Server
+    ├── prisma/        # Schema database (SQLite/MySQL) & seed script
+    ├── routes/        # Router untuk auth, dashboard, laporan, export, admin
+    ├── lib/           # JWT Helper, EWS logic, Excel export helpers
+    └── server.js      # Entry point Express App
 ```
+
+---
+
+## 🚀 Setup Development (Lokal)
+
+### 1. Jalankan Backend API
+```bash
+cd backend
+npm install
+
+# Setup environtment lokal
+# Buat file .env di dalam folder backend/ dan isi:
+# PORT=3000
+# JWT_SECRET="rahasia-jwt-lokal-dev-12345"
+# NODE_ENV=development
+
+# Sinkronkan skema database SQLite dev.db lokal
+Copy-Item -Path "../prisma/dev.db" -Destination "prisma/dev.db" -Force # Salin DB yang sudah ada
+npx prisma generate
+
+# Jalankan server API backend
+npm run dev
+```
+Backend API akan berjalan di [http://localhost:3000](http://localhost:3000)
+
+### 2. Jalankan Frontend React
+```bash
+cd frontend
+npm install
+npm run dev
+```
+Frontend akan berjalan di [http://localhost:5173](http://localhost:5173). Semua request ke `/api/*` secara otomatis diproxy ke backend port 3000 melalui konfigurasi proxy Vite.
 
 ---
 
 ## 🌐 Deploy ke Dewaweb (Shared Hosting)
 
-1. Buka cPanel → **Setup Node.js App** → Create Application
-2. Node.js Version: `20.x`, Startup File: `server.js`
-3. Upload semua file (kecuali `node_modules/`)
-4. Klik **Run npm install** di cPanel
-5. Buat database MySQL via cPanel → MySQL Databases
-6. Set environment variables di `.env`
-7. Buka Terminal cPanel → `npx prisma migrate deploy && npx prisma db seed`
-8. Klik **Start App**
+Untuk langkah deployment terperinci ke hosting cPanel Dewaweb, silakan merujuk pada file [dewaweb_deployment_guide.md](file:///C:/Users/ajian/.gemini/antigravity/brain/ea5a5b9e-a833-475c-86fe-56ba25e6f817/dewaweb_deployment_guide.md).
 
 ---
 
 ## 📋 Fitur Utama
 
-- **Form Input Harian** — Cascade dropdown kecamatan → desa → SLS → sub-SLS, dengan auto-fill PML/PCL/Korlap dan total muatan
-- **Dashboard Drill-Down** — 4 level: Kabupaten → Kecamatan → SLS/RT → Sub-SLS detail
-- **Early Warning System** — Deteksi PCL tidak aktif, stagnan, dan risiko tidak selesai
-- **Rekap & Ekspor Excel** — 5 level rekap: per sub-SLS, per SLS/RT, per kecamatan, harian, dan EWS
+- **Form Input Harian** — Cascade dropdown kecamatan → desa → SLS → sub-SLS, dengan pengisian data target muatan otomatis.
+- **Dashboard Drill-Down** — 4 level cakupan: Kabupaten → Kecamatan → SLS/RT → Sub-SLS detail pencacahan.
+- **Early Warning System (EWS)** — Deteksi petugas tidak aktif, progres stagnan, dan status kritis risiko tidak selesai.
+- **Rekap & Ekspor Excel** — Download file Excel untuk 5 level rekapitulasi: per sub-SLS, per SLS/RT, per kecamatan, harian, dan EWS.
 
 ---
 

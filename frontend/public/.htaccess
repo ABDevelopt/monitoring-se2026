@@ -1,0 +1,33 @@
+# Apache .htaccess untuk React SPA
+# Upload file ini ke public_html/ bersama hasil build Vite (dist/)
+
+# Aktifkan mod_rewrite
+Options -MultiViews
+RewriteEngine On
+
+# Redirect semua request yang bukan file atau folder ke index.html
+# (Penting untuk React Router agar refresh halaman tetap berfungsi)
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^ index.html [L]
+
+# Redirect /api/* ke backend Express
+# Aktifkan jika menggunakan Apache ProxyPass
+# (Sesuaikan port dengan konfigurasi Node.js di cPanel)
+# RewriteRule ^api/(.*)$ http://localhost:3000/api/$1 [P,L]
+
+# Cache headers untuk aset statis
+<FilesMatch "\.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2)$">
+  Header set Cache-Control "max-age=31536000, public, immutable"
+</FilesMatch>
+
+# Jangan cache index.html
+<Files "index.html">
+  Header set Cache-Control "no-cache, no-store, must-revalidate"
+  Header set Pragma "no-cache"
+  Header set Expires "0"
+</Files>
+
+# Security headers
+Header always set X-Frame-Options "SAMEORIGIN"
+Header always set X-Content-Type-Options "nosniff"
